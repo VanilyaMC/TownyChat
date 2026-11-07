@@ -28,7 +28,8 @@ public abstract class Channel {
 	private boolean focusable = true;
 	private boolean ignoreable = true;
 	private double spamtime;
-	private WeakHashMap<Player, Long> spammers = new WeakHashMap<>();
+	// Read and written from the async chat threads of every player at once: always used under its own lock.
+	private final WeakHashMap<Player, Long> spammers = new WeakHashMap<>();
 	protected ConcurrentMap<String, Integer> absentPlayers = null;  
 	protected ConcurrentMap<String, Integer> mutedPlayers = null;
 	
@@ -345,22 +346,18 @@ public abstract class Channel {
 		if (player.hasPermission("townychat.spam.bypass"))
 			return false;
 		long timeNow = System.currentTimeMillis();
-		long spam = timeNow;
-		
-		if (spammers.containsKey(player)) {
-			spam = spammers.get(player);
-			spammers.remove(player);
-		} else {
+		boolean spamming;
+		synchronized (spammers) {
+			Long last = spammers.get(player);
 			// No record found so ensure we don't trigger for spam
-			spam -= ((getSpam_time() + 1)*1000);
+			long spam = last != null ? last : timeNow - (long) ((getSpam_time() + 1) * 1000);
+			spamming = timeNow - spam < (getSpam_time() * 1000);
+			spammers.put(player, spamming ? spam : timeNow);
 		}
-		
-		if (timeNow - spam < (getSpam_time()*1000)) {
-			spammers.put(player, spam);
+		if (spamming) {
 			TownyMessaging.sendErrorMsg(player, Translatable.of("tc_err_unable_to_talk_you_are_spamming"));
 			return true;
 		}
-		spammers.put(player, timeNow);
 		return false;
 	}
 

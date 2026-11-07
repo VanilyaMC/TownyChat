@@ -1,5 +1,7 @@
 package com.palmergames.bukkit.TownyChat.listener;
 
+import java.util.Map;
+import java.util.Collections;
 import com.palmergames.bukkit.TownyChat.Chat;
 import com.palmergames.bukkit.TownyChat.TownyChatFormatter;
 import com.palmergames.bukkit.TownyChat.channels.Channel;
@@ -29,7 +31,8 @@ import java.util.WeakHashMap;
 public class TownyChatPlayerListener implements Listener  {
 	private Chat plugin;
 	
-	public WeakHashMap<Player, String> directedChat = new WeakHashMap<>();
+	// Written by channel commands on the player's region thread and read by async chat threads at the same time.
+	public final Map<Player, String> directedChat = Collections.synchronizedMap(new WeakHashMap<>());
 
 	public TownyChatPlayerListener(Chat instance) {
 		this.plugin = instance;
